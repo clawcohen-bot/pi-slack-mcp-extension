@@ -18,16 +18,24 @@ Source reference: https://github.com/slackapi/slack-mcp-plugin
   - `/slack-mcp-auth`
   - `/slack-mcp-reset`
 
-## Install locally in Pi
+## Install in Pi
+
+From GitHub:
 
 ```bash
-pi install /path/to/pi-slack-mcp-extension
+pi install git:github.com/clawcohen-bot/pi-slack-mcp-extension
 ```
 
 Or test once:
 
 ```bash
-pi -e /path/to/pi-slack-mcp-extension
+pi -e git:github.com/clawcohen-bot/pi-slack-mcp-extension
+```
+
+From a local checkout:
+
+```bash
+pi install /path/to/pi-slack-mcp-extension
 ```
 
 ## Authenticate

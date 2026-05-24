@@ -1,17 +1,28 @@
 {
   "name": "pi-slack-mcp-extension",
   "version": "0.1.0",
-  "description": "Pi extension package for Slack MCP",
+  "description": "Pi extension package that connects Pi to Slack's hosted MCP server.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
-    "pi-package"
+    "pi-package",
+    "pi-extension",
+    "slack",
+    "mcp"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Clawcohen contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/clawcohen-bot/pi-slack-mcp-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/clawcohen-bot/pi-slack-mcp-extension/issues"
+  },
+  "homepage": "https://github.com/clawcohen-bot/pi-slack-mcp-extension#readme",
   "type": "module",
   "pi": {
     "extensions": [
