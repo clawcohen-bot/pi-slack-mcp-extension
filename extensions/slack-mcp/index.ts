@@ -12,6 +12,7 @@ import { dirname, join } from "node:path";
 const DEFAULT_SERVER_URL = "https://mcp.slack.com/mcp";
 const DEFAULT_CLIENT_ID = "1601185624273.8899143856786"; // Slack's Claude Code MCP client id
 const DEFAULT_CALLBACK_PORT = 3118;
+const DEFAULT_CALLBACK_HOST = "localhost";
 
 type SavedOAuthState = {
   tokens?: OAuthTokens;
@@ -31,8 +32,9 @@ function config() {
   return {
     serverUrl: process.env.SLACK_MCP_URL || DEFAULT_SERVER_URL,
     clientId: process.env.SLACK_MCP_CLIENT_ID || DEFAULT_CLIENT_ID,
+    clientSecret: process.env.SLACK_MCP_CLIENT_SECRET,
     callbackPort: port,
-    callbackUrl: process.env.SLACK_MCP_CALLBACK_URL || `http://127.0.0.1:${port}/callback`,
+    callbackUrl: process.env.SLACK_MCP_CALLBACK_URL || `http://${DEFAULT_CALLBACK_HOST}:${port}/callback`,
     tokenFile: process.env.SLACK_MCP_TOKEN_FILE || join(homedir(), ".pi", "slack-mcp-oauth.json"),
   };
 }
@@ -57,7 +59,7 @@ function createOAuthProvider(runtime: Runtime): OAuthClientProvider {
     redirect_uris: [cfg.callbackUrl],
     grant_types: ["authorization_code", "refresh_token"],
     response_types: ["code"],
-    token_endpoint_auth_method: "none",
+    token_endpoint_auth_method: cfg.clientSecret ? "client_secret_post" : "none",
   };
 
   async function state() {
@@ -69,7 +71,9 @@ function createOAuthProvider(runtime: Runtime): OAuthClientProvider {
     clientMetadata: metadata,
     async clientInformation() {
       const saved = await state();
-      return saved.clientInformation || { client_id: cfg.clientId, client_id_issued_at: 0 };
+      if (saved.clientInformation) return saved.clientInformation;
+      if (cfg.clientSecret) return { client_id: cfg.clientId, client_secret: cfg.clientSecret, client_id_issued_at: 0 };
+      return { client_id: cfg.clientId, client_id_issued_at: 0 };
     },
     async saveClientInformation(clientInformation) {
       const saved = await state();
@@ -110,14 +114,16 @@ function createOAuthProvider(runtime: Runtime): OAuthClientProvider {
   };
 }
 
-async function waitForOAuthCode(port: number, signal?: AbortSignal): Promise<string> {
+async function waitForOAuthCode(callbackUrl: string, signal?: AbortSignal): Promise<string> {
   return await new Promise((resolve, reject) => {
+    const parsedCallbackUrl = new URL(callbackUrl);
     const server = createServer((req, res) => {
       try {
-        const url = new URL(req.url || "/", `http://127.0.0.1:${port}`);
+        const url = new URL(req.url || "/", callbackUrl);
         const code = url.searchParams.get("code");
         const error = url.searchParams.get("error");
-        if (error) throw new Error(error);
+        const errorDescription = url.searchParams.get("error_description");
+        if (error) throw new Error(errorDescription || error);
         if (!code) throw new Error("OAuth callback did not include code");
         res.writeHead(200, { "content-type": "text/plain" });
         res.end("Slack MCP connected. You can close this tab.");
@@ -135,7 +141,7 @@ async function waitForOAuthCode(port: number, signal?: AbortSignal): Promise<str
       server.close();
       reject(new Error("OAuth wait cancelled"));
     });
-    server.listen(port, "127.0.0.1");
+    server.listen(Number(parsedCallbackUrl.port), parsedCallbackUrl.hostname);
   });
 }
 
@@ -191,7 +197,7 @@ export default function slackMcpExtension(pi: ExtensionAPI) {
       ctx.ui.notify(`Open this Slack auth URL, then return here:\n${authUrl}`, "info");
       console.error(`\nOpen this Slack auth URL:\n${authUrl}\n`);
 
-      const code = await waitForOAuthCode(cfg.callbackPort, ctx.signal);
+      const code = await waitForOAuthCode(cfg.callbackUrl, ctx.signal);
       await transport.finishAuth(code);
       await client.connect(transport);
       runtime.client = client;
